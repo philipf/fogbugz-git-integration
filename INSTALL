@@ -1,0 +1,47 @@
+Installation instructions
+=========================
+
+1. git - Installation steps
+---------------------------
+1.1 post-receive is a shell script that should be installed on the git repository.   For our workflow we installed it on the master repository.  Although other options should also work.
+
+The hook-file should be placed in:
+<gitrepo>/.git/hooks/  (For a normal repo)
+<gitrepo>/hooks/ (For a bare server)
+
+In order to avoid copying the script into every new repository it can be copied to the git template directory. 
+For example:
+/usr/local/git/share/git-core/templates/hooks/
+
+This will copy the hook into every new repository on a 'git init'.
+
+
+1.2 Update the fogbugzUri variable in post-receive to your FogBugz server location.
+For example:
+fogbugzUri=http://myserver.com
+
+1.3 Ensure that post-receive has execute permission under *nix systems.  (Update the permission as required by your environment)
+chmod 777 post-receive
+
+2. FogBugz - Installation steps
+-------------------------------
+2.1 This is not nice but I couldn't find any other way of doing this.  FogBugz URL encode the parameters that are sent to the SCM web viewer and causing gitweb to fail.  To overcome this problem run this on Windows:
+cscript FixFogBugzUtilAsp.vbs <fb install dir>
+
+For example:
+cscript FixFogBugzUtilAsp.vbs C:\Program Files\FogBugz\
+
+This updates the util.asp file.  See FixFogBugzUtilAsp.vbs for details.
+
+For other operating systems you will have to change the file yourself. It is a simple 2 line change.  I didn't have access to the PHP version of FogBugz do it.
+
+Not sure if it possible to update files on the hosted FogBugz option.
+
+2.2 Update the URL's that points to your gitweb server.
+In FogBugz -> Settings -> Site
+Source Control URL for logs:
+http://gitwebserver.com/gitweb.cgi?p=^REPO;a=blob;f=^FILE;^R2
+
+Source Control URL for diffs:
+http://gitwebserver.com/gitweb.cgi?p=^REPO;a=blobdiff;f=^FILE;^R1;^R2
+
