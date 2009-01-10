@@ -9,7 +9,7 @@
 
 
 # URI to your FogBugz server
-fogbugzUri=http://fogbugz.sftreal.co.za
+fogbugzUri=http://fogbugz.myserver.com
 
 # Get the name of the current git repo 
 repo=pwd | awk -F / '{print $(NF-1)}'
