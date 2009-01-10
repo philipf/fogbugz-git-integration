@@ -1,0 +1,31 @@
+fogbugz-git-integration
+========================
+
+Provides integration between FogBugz and git.
+It provides a post-receive hook that updates FogBugz with the committed details.  The 'Checkins' feature in FogBugz shows the committed files, their versions and the ability to link to gitweb.  Both file logs and diffs can be viewed from FogBugz.
+
+Developed by Software Realisations after switching to git and not having found an existing way to do this. 
+
+Project home: 
+http://softwarerealisations.com/fogbugz-git-integration.html
+email: philipf(at)softwarerealisations.com
+
+Installation:
+See INSTALL for details
+
+Known issues:
+
+1. Git issues
+-------------
+1.1 This is an early release and may be very specific to our workflow.  We have installed the 'post-receive' hook on our master (bare) repository running on Linux.  
+1.2 Tested on FogBugz version 6.1.41 and git 1.6.1.  Future version of these products might break this project.
+1.3 The hook is used in Linux but developed and unit tested on Windows using msysgit. Therefore it should work in a Windows enviroment as well.
+
+2. FogBugz issues
+------------------
+2.1 gitweb URI parameters are different from most other SCM web viewers. FogBugz HTML encode the parameters passed to gitweb and cause it to fail.  Unfortunately this requires a two lines code change in a FogBugz file. See the INSTALL for details.  I haven't contacted FogBugz to get their input on this.  Hopefully someone can come up with a more elegant solution...
+2.2 Because git use SHA1 for file versions (+ base hashes) instead of more conventional version numbers this causes a bit of display issue on the 'Checkins' feature.  This can be fixed with a GreaseMonkey script. (I didn't want to make any other source code changes to FogBugz)
+
+
+Hope someone else find this useful,
+Philip Fourie
