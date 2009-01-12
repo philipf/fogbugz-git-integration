@@ -8,49 +8,53 @@
 # Tested against: FogBugz version 6.1.41 and git 1.6.1
 
 
-# URI to your FogBugz server
-fogbugzUri=http://fogbugz.myserver.com
-
-# Get the name of the current git repo 
-repo=pwd | awk -F / '{print $(NF-1)}'
-
-# Testing only
-#oldrev="898164775c8c8df1accc860a5f93da65ce247a2c"
-#newrev="85983cebeb67971df94d054b875b90cf5e00f131"
-#ref="N/A"
-# Testing stops
-
-# Determine if a BUGZID was specified in the commit message.
-# If not then quit
-commitSubject=`git show $newrev --pretty=format:%s --name-only | head -n 1`
-
-if [ ${commitSubject:0:7} != "BUGZID:" ]; then
-    echo "Commit message not formatted correctly. Do nothing further"
-    exit
-fi
-
-# Split on the semi colon and get the bug number
-bugId=`echo $commitSubject | awk -F : '{print $2}'`
-
-echo "STARTING [$oldrev $newrev $ref $bugzid]"
-git diff-tree -r $oldrev..$newrev | while read entry; 
+while read oldrev newrev ref
 do
-    echo $entry
-    file_oldsha=`echo $entry | awk '{print $3}'`
-    echo "file_oldsha = "$file_oldsha 
-    
-    file_newsha=`echo $entry | awk '{print $4}'`
-    echo "file_newsha = "$file_newsha 
-    
-    file_name=`echo $entry | awk '{print $6}'`
-    echo "file_name = "$file_name
-   
-    r1="hp="$file_oldsha";hpb="$oldrev
-    r2="h="$file_newsha";hb="$newrev
 
-    echo "r1="$r1
-    echo "r2="$r2
+	# URI to your FogBugz server
+	fogbugzUri=http://yourFogBugServer.com
+
+	# Get the name of the current git repo 
+	repo=`pwd | awk -F / '{print $(NF)}'`
+
+	# Testing only
+	#oldrev="8547dbfa4a1d87ed581924877f78babde7a7271d"
+	#newrev="e132ada12ababc54fd3235afb3a91d27e9e03bc4"
+	#ref="N/A"
+	# Testing stops
+
+	commitSubject=`git show $newrev --pretty=format:%s --name-only | head -n 1`
+
+	if [ ${commitSubject:0:7} != "BUGZID:" ]; then
+	    echo "Commit message not formatted correctly. Do nothing further"
+	    exit
+	fi
+
+	# Split on the semi colon and get the bug number
+	bugId=`echo $commitSubject | awk -F : '{print $2}'`
+
+	echo "STARTING [$oldrev $newrev $ref $bugzid]"
+	git diff-tree -r $oldrev..$newrev | while read entry; 
+	do
+	    echo $entry
+	    file_oldsha=`echo $entry | awk '{print $3}'`
+	    echo "file_oldsha = "$file_oldsha 
     
-    curl "$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$file_oldsha&sNew=$file_newsha&sRepo=$repo"
+	    file_newsha=`echo $entry | awk '{print $4}'`
+	    echo "file_newsha = "$file_newsha 
+    
+	    file_name=`echo $entry | awk '{print $6}'`
+	    echo "file_name = "$file_name
+   
+	    r1="hp="$file_oldsha";hpb="$oldrev
+	    r2="h="$file_newsha";hb="$newrev
+
+	    echo "r1="$r1
+	    echo "r2="$r2
+    
+	    curl "$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$r1&sNew=$r2&sRepo=$repo"
+	    echo "$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$r1&sNew=$r2&sRepo=$repo"
+
+	done
 done
 
