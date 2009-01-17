@@ -1,60 +1,115 @@
 #!/bin/sh
-
-# Post receive hook for git to intergrate to a FogBugz server
+# Post receive hook that intergrates to a FogBugz server.
+# The commit message subject has to start with BUGZID: followed by the case number.
+#
+# Note: 
+# I am not a bash or git expert and am sure some of this can be improved.
+# Suggestions and improvements will be welcomed.
 # 
-# Version 1.0
-# Author: Philip Fourie
-# Location: http://softwarerealisations.com/fogbugz-git-integration.html
-# Tested against: FogBugz version 6.1.41 and git 1.6.1
+# Version	: 1.0.2
+# Author	: Philip Fourie
+# Email		: philipf ( at ) softwarerealisations.com
+# Web		: http://softwarerealisations.com/fogbugz-git-integration.html
+# Tested 	: FogBugz version 6.1.41 and git 1.6.1
 
+# Config
+# URI to your FogBugz server
+fogbugzUri=http://myfogbugzserver.com
+showDebug=false
 
+echo "--------== Starting FogBugz post-receive hook ==----------"
 while read oldrev newrev ref
 do
-
-	# URI to your FogBugz server
-	fogbugzUri=http://yourFogBugServer.com
-
+	# For debug: Print out the parameters with which this hook was called.
+	if [ $showDebug == true ]; then
+		cmdLine=`echo "postreceive $oldrev $newrev $ref"`
+		echo "$cmdLine"
+	fi
+	
 	# Get the name of the current git repo 
+	# This is the only way I could determine the repo name, hopefully there is a more gracefull way.
 	repo=`pwd | awk -F / '{print $(NF)}'`
-
-	# Testing only
-	#oldrev="8547dbfa4a1d87ed581924877f78babde7a7271d"
-	#newrev="e132ada12ababc54fd3235afb3a91d27e9e03bc4"
-	#ref="N/A"
-	# Testing stops
-
-	commitSubject=`git show $newrev --pretty=format:%s --name-only | head -n 1`
-
-	if [ ${commitSubject:0:7} != "BUGZID:" ]; then
-	    echo "Commit message not formatted correctly. Do nothing further"
-	    exit
+	if [ "$repo" == ".git" ]; then
+		# This is not a bare repository, try getting the name a different way.
+		repo=`pwd | awk -F / '{print $(NF - 1)}'`
 	fi
 
-	# Split on the semi colon and get the bug number
-	bugId=`echo $commitSubject | awk -F : '{print $2}'`
-
-	echo "STARTING [$oldrev $newrev $ref $bugzid]"
-	git diff-tree -r $oldrev..$newrev | while read entry; 
+	# Find all the commits between oldrev and newrev.  Possible (and likely) that a single push contains more than one commit message.
+	# Also possible that some of these commits don't confirm to the FogBugz naming convention. (eg. It is a git local merge that was pushed
+	# or the committer didn't supply it in the expected format
+	git log $oldrev..$newrev --pretty=format:~~CommitSubject:%s%n~~CommitHash:%H%n~~EOR%n | while read logentry;
 	do
-	    echo $entry
-	    file_oldsha=`echo $entry | awk '{print $3}'`
-	    echo "file_oldsha = "$file_oldsha 
-    
-	    file_newsha=`echo $entry | awk '{print $4}'`
-	    echo "file_newsha = "$file_newsha 
-    
-	    file_name=`echo $entry | awk '{print $6}'`
-	    echo "file_name = "$file_name
-   
-	    r1="hp="$file_oldsha";hpb="$oldrev
-	    r2="h="$file_newsha";hb="$newrev
+		# Parse out the commit subject
+		if [ "${logentry:0:15}" == "~~CommitSubject" ]; then
+			commitSubject="${logentry:16}"
+			echo "CommitSubject=$commitSubject"
+		fi
+	
+		# Parse out the commt hash
+		if [ "${logentry:0:12}" == "~~CommitHash" ]; then
+			commitHash=`echo $logentry | awk -F : '{print $2}'`
+			echo "CommitHash=$commitHash"
+		fi
+		
+		# Reached the end of the commit record, now process it.
+		if [ "${logentry:0:5}" == "~~EOR" ]; then
+			if [ "${commitSubject:0:7}" != "BUGZID:" ]; then
+				echo "Not a FogBugz commit message, do nothing with this commit"
+				echo
+			else
+				# This is a entry we want to send to FogBugz
+				# Split on the semicolon and retrieve the bug number
+				bugId=`echo $commitSubject | awk -F : '{print $2}'`
+				echo "bugId=$bugId"
 
-	    echo "r1="$r1
-	    echo "r2="$r2
-    
-	    curl "$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$r1&sNew=$r2&sRepo=$repo"
-	    echo "$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$r1&sNew=$r2&sRepo=$repo"
+				# Find all the files belonging to this commit with their prev and current file hashes
+				git diff-tree -r $commitHash^..$commitHash | while read entry; 
+				do
+					# Parse out the old/previous file SHA1
+					file_oldsha=`echo $entry | awk '{print $3}'`
+				
+					# Parse out the new/current file SHA1
+					file_newsha=`echo $entry | awk '{print $4}'`
+									
+					# Parse out the filename
+					file_name=`echo $entry | awk '{print $6}'`
+								   
+					# Use the current commit SHA1 as the hash base
+					hashBase="$commitHash"
+					
+					# Find the file's previous commit SHA1 from its revision list.
+					# This was tricky and I hope that it holds true for all cases.
+					hashBaseParent=`git rev-list --max-count=1 $commitHash^ -- $file_name`
 
-	done
-done
+					# Build the FogBugz URI
+					r1="hp=$file_oldsha;hpb=$hashBaseParent"
+					r2="h=$file_newsha;hb=$hashBase"
+					postUri="$fogbugzUri/cvsSubmit.asp?ixBug=$bugId&sFile=$file_name&sPrev=$r1&sNew=$r2&sRepo=$repo" 
+					
+					# Debug only
+					if [ $showDebug == true ]; then
+						echo "$entry"
+						echo "file_name=$file_name"
+						echo "file_oldsha=$file_oldsha"
+						echo "file_newsha=$file_newsha"
+						echo "hashBase=$hashBase"
+						echo "hashBaseParent=$hashBaseParent"
+						echo "r1="$r1
+						echo "r2="$r2
+						echo $postUri
+						echo
+					fi 
+					# Debug end
+					
+					echo "FogBugz result: " 
+					curl -# $postUri
+					echo 
+					echo
+					
+				done # git diff-tree
+			fi		
+		fi
+	done # git log
+done # read commad line arguments
 
+echo "--------== Finished FogBugz post-receive hook ==----------" 
