@@ -1,0 +1,3 @@
+TODO:
+1. Find a solution for handling new and deleted files when showing a diff from FogBugz
+2. Add Firefox GreaseMonkey script to clean up the display of the long SHA1's in FogBugz.
