@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Post receive hook that intergrates to a FogBugz server.
 # The commit message subject has to start with BUGZID: followed by the case number.
 #
@@ -53,13 +53,13 @@ do
 		
 		# Reached the end of the commit record, now process it.
 		if [ "${logentry:0:5}" == "~~EOR" ]; then
-			if [ "${commitSubject:0:7}" != "BUGZID:" ]; then
+			if [ `echo ${commitSubject:0:7} | tr '[:lower:]' '[:upper:]'` != "BUGZID:" ]; then
 				echo "Not a FogBugz commit message, do nothing with this commit"
 				echo
 			else
 				# This is a entry we want to send to FogBugz
 				# Split on the semicolon and retrieve the bug number
-				bugId=`echo $commitSubject | awk -F : '{print $2}'`
+				bugId=`echo $commitSubject | awk -F : '{print $2}' | tr -d ' '`
 				echo "bugId=$bugId"
 
 				# Find all the files belonging to this commit with their prev and current file hashes
