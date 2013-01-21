@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Post receive hook that intergrates to a FogBugz server.
 # The commit message subject has to start with BUGZID: followed by the case number.
 #
